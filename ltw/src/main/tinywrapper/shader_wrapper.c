@@ -88,7 +88,19 @@ static void insert_fragout_pos(char* source, int* size, const char* name, GLuint
     char dst_string[256] = { 0 };
     snprintf(src_string, sizeof(src_string), "/* LTW INSERT LOCATION %s LTW */", name);
     snprintf(dst_string, sizeof(dst_string), "layout(location = %u) ", pos);
-    gl4es_inplace_replace_simple(source, size, src_string, dst_string);
+    char* p = strstr(source, src_string);
+    if(p) {
+        gl4es_inplace_replace_simple(source, size, src_string, dst_string);
+    } else {
+        // Fallback: try to find 'out vec4 name' and prepend layout
+        char out_search[256];
+        snprintf(out_search, sizeof(out_search), "out vec4 %s", name);
+        p = strstr(source, out_search);
+        if(p) {
+            int offset = p - source;
+            source = InplaceInsertByIndex(source, size, offset, dst_string);
+        }
+    }
 }
 
 void glLinkProgram(GLuint program) {
