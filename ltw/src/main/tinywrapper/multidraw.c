@@ -7,6 +7,7 @@
 #include <proc.h>
 #include <egl.h>
 #include "basevertex.h"
+#include "main.h"
 typedef struct {
     GLuint count;
     GLuint instanceCount;
