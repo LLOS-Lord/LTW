@@ -88,17 +88,33 @@ static void insert_fragout_pos(char* source, int* size, const char* name, GLuint
     char dst_string[256] = { 0 };
     snprintf(src_string, sizeof(src_string), "/* LTW INSERT LOCATION %s LTW */", name);
     snprintf(dst_string, sizeof(dst_string), "layout(location = %u) ", pos);
+    
     char* p = strstr(source, src_string);
     if(p) {
         gl4es_inplace_replace_simple(source, size, src_string, dst_string);
     } else {
-        // Fallback: try to find 'out vec4 name' and prepend layout
-        char out_search[256];
-        snprintf(out_search, sizeof(out_search), "out vec4 %s", name);
-        p = strstr(source, out_search);
-        if(p) {
-            int offset = p - source;
-            source = InplaceInsertByIndex(source, size, offset, dst_string);
+        // Advanced fallback for modern Sodium/Minecraft 1.20+
+        // Search for 'out' followed by optional type and the variable name
+        // Pattern: out [type] name;
+        char* out_ptr = source;
+        while ((out_ptr = strstr(out_ptr, "out ")) != NULL) {
+            char* name_ptr = strstr(out_ptr, name);
+            if (name_ptr != NULL) {
+                // Verify this 'out' belongs to our variable by checking distance and delimiters
+                char* semicolon_ptr = strchr(out_ptr, ';');
+                if (semicolon_ptr && name_ptr < semicolon_ptr) {
+                    // Check if it already has a layout
+                    char* line_start = out_ptr;
+                    while (line_start > source && *(line_start-1) != '\n' && *(line_start-1) != ';') line_start--;
+                    
+                    if (strstr(line_start, "layout") == NULL || strstr(line_start, "layout") > out_ptr) {
+                        int offset = out_ptr - source;
+                        source = InplaceInsertByIndex(source, size, offset, dst_string);
+                        return;
+                    }
+                }
+            }
+            out_ptr += 4;
         }
     }
 }
