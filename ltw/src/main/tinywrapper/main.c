@@ -307,7 +307,7 @@ const GLubyte* glGetString(GLenum name) {
     if(!current_context) return NULL;
     switch(name) {
         case GL_VERSION:
-            return (const GLubyte*)"4.6 OpenLTW (Built on: "__DATE__"/"__TIME__")";
+            return (const GLubyte*)"3.3 OpenLTW (Built on: "__DATE__"/"__TIME__")";
         case GL_SHADING_LANGUAGE_VERSION:
             return (const GLubyte*)"4.60 LTW";
         case GL_VENDOR:
@@ -418,10 +418,10 @@ void glGetIntegerv(GLenum pname, GLint* data) {
     if(!current_context) return;
     switch (pname) {
         case GL_MAJOR_VERSION:
-            *data = 4;
+            *data = 3;
             return;
         case GL_MINOR_VERSION:
-            *data = 6;
+            *data = 3;
             return;
         case GL_NUM_EXTENSIONS:
             es3_functions.glGetIntegerv(pname, data);

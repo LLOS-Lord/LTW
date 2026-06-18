@@ -119,14 +119,14 @@ char * ConvertShaderVgpu(char* source, int is_vertex, int second_pass){
     //printf("FUCKING UP PRECISION");
     source = ReplacePrecisionQualifiers(source, &sourceLength, is_vertex);
 
-    // source = ProcessSwitchCases(source, &sourceLength);
-    // VerbosePrint(source, "Complex case statement replaced");
+    source = ProcessSwitchCases(source, &sourceLength);
+    VerbosePrint(source, "Complex case statement replaced");
 
-    // source = FixSimpleSwitchCases(source, &sourceLength);
-    // VerbosePrint(source, "Simple case statement replaced");
+    source = FixSimpleSwitchCases(source, &sourceLength);
+    VerbosePrint(source, "Simple case statement replaced");
 
-    // source = WrapSwitchStatements(source, &sourceLength);
-    // VerbosePrint(source, "Switch statement wrapped");
+    source = WrapSwitchStatements(source, &sourceLength);
+    VerbosePrint(source, "Switch statement wrapped");
 
     source = RemoveUniformProperty(source);
     VerbosePrint(source, "Uniform property removed");
@@ -277,17 +277,23 @@ char * WrapSwitchStatements(char *source, int *sourceLength){
 
         // Get to the start parentheses, then to the end one
         unsigned long startParentheses = GetNextTokenPosition(source + offset, startIndex, '(', "\n\t\r ");
-        if(startParentheses == startIndex) break;
+        if(source[offset + startParentheses] != '(') {
+            offset += startIndex + 5;
+            continue;
+        }
 
         // Get to the end token
         unsigned long endParentheses = GetClosingTokenPosition(source + offset, startParentheses);
-        if(endParentheses == startParentheses) break;
+        if(endParentheses == startParentheses) {
+            offset += startIndex + 5;
+            continue;
+        }
 
         // Insert the token replacements
         source = InplaceInsertByIndex(source, sourceLength, offset + endParentheses, ")");
         source = InplaceInsertByIndex(source, sourceLength, offset + startParentheses + 1, "int(");
 
-        offset += endParentheses;
+        offset += endParentheses + 6; // 6 = strlen("int(") + strlen(")") + some safety
     }
 
     return source;
