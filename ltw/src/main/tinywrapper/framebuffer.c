@@ -29,12 +29,10 @@ static GLuint get_attachment_idx(GLenum attachment) {
 }
 
 static GLenum map_attachment(framebuffer_t* framebuffer, GLenum attachment) {
-    for(GLsizei i = 0; i < framebuffer->nbuffers; i++) {
-        if(framebuffer->virt_drawbuffers[i] == attachment) {
-            return i + GL_COLOR_ATTACHMENT0;
-        }
-    }
-    return GL_NONE;
+    // For Minecraft 1.20+ and Sodium, we should use a direct 1:1 mapping if possible
+    // The previous dynamic mapping was causing invisible blocks because shader locations 
+    // didn't match the physical attachments after remapping.
+    return attachment;
 }
 
 void rebind_framebuffer(GLenum target, framebuffer_t *framebuffer, GLenum virt_attachment) {
@@ -106,14 +104,15 @@ void glDrawBuffers(GLsizei n, const GLenum* buffers) {
     }
     framebuffer->nbuffers = n;
     memcpy(framebuffer->virt_drawbuffers, buffers, n * sizeof(GLenum));
-    GLenum phys_drawbuffers[n];
+    
+    // Minecraft 1.20+ / Sodium compatibility:
+    // We bind all requested buffers to their natural locations.
     for(GLsizei i = 0; i < n; i++) {
-        GLenum buffer = buffers[i];
-        rebind_framebuffer(GL_DRAW_FRAMEBUFFER, framebuffer, buffer);
-        if(buffer != GL_NONE) phys_drawbuffers[i] = GL_COLOR_ATTACHMENT0+i;
-        else phys_drawbuffers[i] = GL_NONE;
+        if(buffers[i] != GL_NONE) {
+            rebind_framebuffer(GL_DRAW_FRAMEBUFFER, framebuffer, buffers[i]);
+        }
     }
-    es3_functions.glDrawBuffers(n, phys_drawbuffers);
+    es3_functions.glDrawBuffers(n, buffers);
 }
 
 void glDrawBuffer(GLenum buffer) {

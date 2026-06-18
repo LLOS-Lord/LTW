@@ -15,6 +15,14 @@ typedef struct {
     GLuint reserved;
 } DrawArraysIndirectCommand;
 
+typedef struct {
+    GLuint count;
+    GLuint instanceCount;
+    GLuint firstIndex;
+    GLint  baseVertex;
+    GLuint reserved;
+} DrawElementsIndirectCommand;
+
 void glMultiDrawArrays( GLenum mode, GLint *first, GLsizei *count, GLsizei primcount )
 {
     if(!current_context) return;
@@ -44,27 +52,35 @@ void glMultiDrawArrays( GLenum mode, GLint *first, GLsizei *count, GLsizei primc
 void glMultiDrawElements( GLenum mode, GLsizei *count, GLenum type, const void * const *indices, GLsizei primcount )
 {
     if(!current_context) return;
-    GLint elementbuffer;
-    es3_functions.glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &elementbuffer);
-    es3_functions.glBindBuffer(GL_COPY_WRITE_BUFFER, current_context->multidraw_element_buffer);
-    GLsizei total = 0, offset = 0, typebytes = type_bytes(type);
-    for (GLsizei i = 0; i < primcount; i++) {
-        total += count[i];
-    }
-    es3_functions.glBufferData(GL_COPY_WRITE_BUFFER, total*typebytes, NULL, GL_STREAM_DRAW);
-    for (GLsizei i = 0; i < primcount; i++) {
-        GLsizei icount = count[i];
-        if(icount == 0) continue;
-        icount *= typebytes;
-        if(elementbuffer != 0) {
-            es3_functions.glCopyBufferSubData(GL_ELEMENT_ARRAY_BUFFER, GL_COPY_WRITE_BUFFER, (GLintptr)indices[i], offset, icount);
-        }else {
-            es3_functions.glBufferSubData(GL_COPY_WRITE_BUFFER, offset, icount, indices[i]);
+    
+    // Performance optimization for Sodium/MC 1.20+: Use DrawElementsIndirect if available
+    if (current_context->es31 && primcount > 8) {
+        DrawElementsIndirectCommand commands[primcount];
+        GLsizei typebytes = type_bytes(type);
+        for (int i = 0; i < primcount; i++) {
+            commands[i].count = count[i];
+            commands[i].instanceCount = 1;
+            commands[i].firstIndex = (GLuint)((uintptr_t)indices[i] / typebytes);
+            commands[i].baseVertex = 0;
+            commands[i].reserved = 0;
         }
-        offset += icount;
+        
+        GLuint prev_indirect = current_context->bound_buffers[get_buffer_index(GL_DRAW_INDIRECT_BUFFER)];
+        // Reuse the multidraw buffer for commands
+        es3_functions.glBindBuffer(GL_DRAW_INDIRECT_BUFFER, current_context->multidraw_element_buffer);
+        es3_functions.glBufferData(GL_DRAW_INDIRECT_BUFFER, sizeof(commands), commands, GL_STREAM_DRAW);
+        
+        for (int i = 0; i < primcount; i++) {
+            es3_functions.glDrawElementsIndirect(mode, type, (void*)(uintptr_t)(i * sizeof(DrawElementsIndirectCommand)));
+        }
+        
+        es3_functions.glBindBuffer(GL_DRAW_INDIRECT_BUFFER, prev_indirect);
+        return;
     }
-    es3_functions.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, current_context->multidraw_element_buffer);
-    es3_functions.glDrawElements(mode, total, type, 0);
-    if(elementbuffer != 0) es3_functions.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
 
+    // Fallback for older GLES or small draw counts
+    for (int i = 0; i < primcount; i++) {
+        if (count[i] > 0)
+            es3_functions.glDrawElements(mode, count[i], type, indices[i]);
+    }
 }
