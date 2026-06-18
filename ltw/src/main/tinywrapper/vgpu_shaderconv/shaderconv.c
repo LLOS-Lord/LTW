@@ -119,14 +119,14 @@ char * ConvertShaderVgpu(char* source, int is_vertex, int second_pass){
     //printf("FUCKING UP PRECISION");
     source = ReplacePrecisionQualifiers(source, &sourceLength, is_vertex);
 
-    source = ProcessSwitchCases(source, &sourceLength);
-    VerbosePrint(source, "Complex case statement replaced");
+    // source = ProcessSwitchCases(source, &sourceLength);
+    // VerbosePrint(source, "Complex case statement replaced");
 
-    source = FixSimpleSwitchCases(source, &sourceLength);
-    VerbosePrint(source, "Simple case statement replaced");
+    // source = FixSimpleSwitchCases(source, &sourceLength);
+    // VerbosePrint(source, "Simple case statement replaced");
 
-    source = WrapSwitchStatements(source, &sourceLength);
-    VerbosePrint(source, "Switch statement wrapped");
+    // source = WrapSwitchStatements(source, &sourceLength);
+    // VerbosePrint(source, "Switch statement wrapped");
 
     source = RemoveUniformProperty(source);
     VerbosePrint(source, "Uniform property removed");
